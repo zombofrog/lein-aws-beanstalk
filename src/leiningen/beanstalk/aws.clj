@@ -88,7 +88,7 @@
 	(merge default-beanstalk-endpoints (-> project :aws :beanstalk (get :extra-regions {}))))
 
 (defn project-endpoint [project endpoints]
-  (clojure.pprint/pprint endpoints)
+  (.println (System/out) (str endpoints))
   (-> project :aws :beanstalk (:region :us-east-1) keyword endpoints))
 
 (defn create-bucket [client bucket region]
