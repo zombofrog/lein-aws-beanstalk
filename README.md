@@ -1,4 +1,4 @@
-# lein-beanstalk
+# lein-aws-beanstalk
 
 Leiningen plugin for Amazon's [Elastic Beanstalk][1].
 
@@ -11,18 +11,18 @@ You will also need to be signed up for Elastic Beanstalk.
 
 ## Basic Configuration
 
-To use lein-beanstalk, you'll need to add a few additional values to
+To use lein-aws-beanstalk, you'll need to add a few additional values to
 your `project.clj` file.
 
 First, add lein-beanstalk as a plugin:
 ```clojure
-:plugins [[lein-beanstalk "0.2.7"]]
+:plugins [[lein-aws-beanstalk "0.2.8"]]
 ```
 
 or, if you're using a version of Leiningen prior to 1.7.0, add it to
 your `:dev-dependencies`:
 ```clojure
-:dev-dependencies [[lein-beanstalk "0.2.7"]]
+:dev-dependencies [[lein-aws-beanstalk "0.2.8"]]
 ```
 Then add a `lein-beanstalk-credentials` definition to your
 `~/.lein/init.clj` file that contains your AWS credentials:
