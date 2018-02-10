@@ -61,7 +61,7 @@
 (defn- ep [endpoint region_name]
   {:ep endpoint :region (Region/valueOf region_name)})
 
-(def s3-endpoints
+(def default-s3-endpoints
   {:us-east-1      (ep "s3.amazonaws.com" "US_Standard")
    :us-west-1      (ep "s3-us-west-1.amazonaws.com" "US_West")
    :us-west-2      (ep "s3-us-west-2.amazonaws.com" "US_West_2")
@@ -71,7 +71,7 @@
    :ap-northeast-1 (ep "s3-ap-northeast-1.amazonaws.com" "AP_Tokyo")
    :sa-east-1      (ep "s3-sa-east-1.amazonaws.com" "SA_SaoPaulo")})
 
-(def beanstalk-endpoints
+(def default-beanstalk-endpoints
   {:us-east-1      "elasticbeanstalk.us-east-1.amazonaws.com"
    :us-west-1      "elasticbeanstalk.us-west-1.amazonaws.com"
    :us-west-2      "elasticbeanstalk.us-west-2.amazonaws.com"
@@ -80,6 +80,12 @@
    :ap-southeast-2 "elasticbeanstalk.ap-southeast-2.amazonaws.com"
    :ap-northeast-1 "elasticbeanstalk.ap-northeast-1.amazonaws.com"
    :sa-east-1      "elasticbeanstalk.sa-east-1.amazonaws.com"})
+
+(defn s3-endpoints [project]
+  (-> project :aws :beanstalk (:extra-buckets {}) (conj default-s3-endpoints)))
+
+(defn beanstalk-endpoints [project]
+  (-> project :aws :beanstalk (:extra-regions {}) (conj default-beanstalk-endpoints)))
 
 (defn project-endpoint [project endpoints]
   (-> project :aws :beanstalk (:region :us-east-1) keyword endpoints))
@@ -91,7 +97,7 @@
 (defn s3-upload-file [project filepath]
   (let [bucket  (s3-bucket-name project)
         file    (io/file filepath)
-        ep-desc (project-endpoint project s3-endpoints)]
+        ep-desc (project-endpoint project (s3-endpoints project))]
     (doto (AmazonS3Client. (credentials project))
       (.setEndpoint (:ep ep-desc))
       (create-bucket bucket (:region ep-desc))
@@ -100,9 +106,9 @@
 
 (defn- beanstalk-client [project]
   (doto (AWSElasticBeanstalkClient. (credentials project))
-    (.setEndpoint (project-endpoint project beanstalk-endpoints))))
+    (.setEndpoint (project-endpoint project (beanstalk-endpoints project)))))
 
-(defn create-app-version
+(defn create-app-versionproject-endpoint
   [project filename]
   (.createApplicationVersion
     (beanstalk-client project)

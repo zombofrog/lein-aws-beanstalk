@@ -4,3 +4,4 @@ pom.xml.asc
 lib
 classes
 /target
+.idea
