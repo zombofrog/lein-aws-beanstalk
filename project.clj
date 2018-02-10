@@ -1,4 +1,4 @@
-(defproject lein-aws-beanstalk "0.2.8"
+(defproject lein-aws-beanstalk "0.2.8-SNAPSHOT"
   :description "Leiningen plugin for Amazon's Elastic Beanstalk"
   :url "https://github.com/zombofrog/lein-aws-beanstalk"
   :dependencies [[org.clojure/clojure "1.9.0-RC2"]
