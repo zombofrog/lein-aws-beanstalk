@@ -19,7 +19,8 @@
     com.amazonaws.services.elasticbeanstalk.model.S3Location
     com.amazonaws.services.elasticbeanstalk.model.TerminateEnvironmentRequest
     com.amazonaws.services.s3.AmazonS3Client
-    com.amazonaws.services.s3.model.Region))
+    com.amazonaws.services.s3.model.Region
+    [com.amazonaws.regions RegionUtils]))
 
 (defn quiet-logger
   "Stop the extremely verbose AWS logger from logging so many messages."
@@ -59,7 +60,9 @@
       (str "lein-beanstalk." (app-name project))))
 
 (defn- ep [endpoint region_name]
-  {:ep endpoint :region (Region/valueOf region_name)})
+  (case region_name
+	  "EU_Frankfurt" {:ep endpoint :region (RegionUtils/getRegion "eu-central-1")}
+    {:ep endpoint :region (Region/valueOf region_name)}))
 
 (def default-s3-endpoints
   {:us-east-1      (ep "s3.amazonaws.com" "US_Standard")
@@ -82,10 +85,18 @@
    :sa-east-1      "elasticbeanstalk.sa-east-1.amazonaws.com"})
 
 (defn s3-endpoints [project]
-	(merge default-s3-endpoints (-> project :aws :beanstalk (get :extra-buckets {}))))
+	(let [extra (-> project
+	                :aws
+	                :beanstalk
+	                (get :extra-buckets {})
+	                (as-> buckets
+	                      (map #(hash-map (first %) (ep (-> % last first) (-> % last last))) buckets))
+	                (as-> endpoints (into {} endpoints)))]
+		(conj extra default-s3-endpoints)))
 
 (defn beanstalk-endpoints [project]
-	(merge default-beanstalk-endpoints (-> project :aws :beanstalk (get :extra-regions {}))))
+  (let [extra (-> project :aws :beanstalk (get :extra-regions {}))]
+    (conj extra default-beanstalk-endpoints)))
 
 (defn project-endpoint [project endpoints]
   (.println (System/out) (str endpoints))
