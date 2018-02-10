@@ -82,10 +82,10 @@
    :sa-east-1      "elasticbeanstalk.sa-east-1.amazonaws.com"})
 
 (defn s3-endpoints [project]
-  (-> project :aws :beanstalk (:extra-buckets {}) (conj default-s3-endpoints)))
+	(merge default-s3-endpoints (-> project :aws :beanstalk (get :extra-buckets {}))))
 
 (defn beanstalk-endpoints [project]
-  (-> project :aws :beanstalk (:extra-regions {}) (conj default-beanstalk-endpoints)))
+	(merge default-beanstalk-endpoints (-> project :aws :beanstalk (get :extra-regions {}))))
 
 (defn project-endpoint [project endpoints]
   (-> project :aws :beanstalk (:region :us-east-1) keyword endpoints))
@@ -108,7 +108,7 @@
   (doto (AWSElasticBeanstalkClient. (credentials project))
     (.setEndpoint (project-endpoint project (beanstalk-endpoints project)))))
 
-(defn create-app-versionproject-endpoint
+(defn create-app-version
   [project filename]
   (.createApplicationVersion
     (beanstalk-client project)
