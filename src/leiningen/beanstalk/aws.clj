@@ -5,8 +5,10 @@
     [clojure.string :as str])
   (:import
     java.text.SimpleDateFormat
-    java.util.Date
     [java.util.logging Logger Level]
+    [java.security KeyPairGenerator]
+    [javax.crypto KeyGenerator]
+    [java.util Date UUID]
     com.amazonaws.auth.BasicAWSCredentials
     com.amazonaws.services.elasticbeanstalk.AWSElasticBeanstalkClient
     com.amazonaws.services.elasticbeanstalk.model.ConfigurationOptionSetting
@@ -19,8 +21,15 @@
     com.amazonaws.services.elasticbeanstalk.model.S3Location
     com.amazonaws.services.elasticbeanstalk.model.TerminateEnvironmentRequest
     com.amazonaws.services.s3.AmazonS3Client
+    com.amazonaws.services.s3.AmazonS3EncryptionClient
     com.amazonaws.services.s3.model.Region
-    [com.amazonaws.regions RegionUtils]))
+    com.amazonaws.services.s3.model.EncryptionMaterials
+    com.amazonaws.services.s3.model.StaticEncryptionMaterialsProvider
+    com.amazonaws.services.s3.model.PutObjectRequest
+    com.amazonaws.services.s3.model.ObjectMetadata
+    com.amazonaws.services.s3.model.CryptoConfiguration
+    com.amazonaws.services.s3.model.CryptoMode
+    com.amazonaws.regions.RegionUtils))
 
 (defn quiet-logger
   "Stop the extremely verbose AWS logger from logging so many messages."
@@ -106,6 +115,86 @@
   (when-not (.doesBucketExist client bucket)
     (.createBucket client bucket region)))
 
+(def project*
+	{:aws {:beanstalk {:app-name      "casino"
+	                   :extra-regions {:eu-central-1 "ec2.eu-central-1.amazonaws.com"}
+	                   :extra-buckets {:eu-central-1 ["s3.eu-central-1.amazonaws.com" "EU_Frankfurt"]}
+	                   :region        "eu-central-1"
+	                   :environments  ["test" "development"]}}})
+
+;(s3-endpoints project*)
+
+(defn- generate-secret-key
+	([] (.generateKey (KeyGenerator/getInstance "AES")))
+	([instance-type] (.generateKey (KeyGenerator/getInstance instance-type))))
+
+(defn- generate-keypair
+	([] (.generateKeyPair (KeyPairGenerator/getInstance "RSA")))
+	([instance-type] (.generateKeyPair (KeyPairGenerator/getInstance instance-type))))
+
+(defn s3-upload-file* [project filepath]
+	(let [bucket  (s3-bucket-name project)
+	      file    (io/file filepath)
+	      ep-desc (project-endpoint project (s3-endpoints project))]
+		(doto (AmazonS3EncryptionClient. (credentials project)
+		                                 (StaticEncryptionMaterialsProvider. (EncryptionMaterials. (generate-keypair)))
+		                                 (CryptoConfiguration. CryptoMode/AuthenticatedEncryption)))))
+
+
+;(credentials project*)
+;(StaticEncryptionMaterialsProvider. (EncryptionMaterials. (generate-keypair)))
+;(CryptoConfiguration. CryptoMode/AuthenticatedEncryption)
+
+(s3-upload-file* project* "~/Workspace/zapi/target/casino.war")
+
+;(map identity (CryptoMode/AuthenticatedEncryption))
+;(class CryptoMode/AuthenticatedEncryption)
+;(CryptoMode/valueOf "AuthenticatedEncryption")
+;
+;(.withCryptoMode (CryptoConfiguration.) CryptoMode/AuthenticatedEncryption)
+
+
+;(defn- create-s3-client* [project] (AmazonS3Client. (credentials project)))
+;
+;(defn- create-encrypt-s3-client* [project]
+;	(AmazonS3EncryptionClient. (credentials project)
+;	                           (StaticEncryptionMaterialsProvider. (EncryptionMaterials. (generate-secret-key)))))
+;
+;(defn create-s3-client [project]
+;	(case (-> project :aws :beanstalk :region keyword)
+;		:eu-central-1 (create-encrypt-s3-client* project)
+;		(create-s3-client* project)))
+;
+;(defn- upload-object* [client bucket endpoint region file]
+;	(doto client
+;	      (.setEndpoint endpoint)
+;	      (create-bucket bucket region)
+;	      (.putObject bucket (.getName file) file)))
+;
+;(defn- upload-encrypt-object* [client bucket endpoint region file]
+;	(let [objectKey (.toString (UUID/randomUUID))]
+;		(doto client
+;		      (.setEndpoint endpoint)
+;		      (create-bucket bucket region)
+;		      (.putObject (PutObjectRequest. bucket objectKey file (ObjectMetadata.))))))
+;
+;(defn upload-object [client project filepath]
+;	(let [bucket   (s3-bucket-name project)
+;	      file     (io/file filepath)
+;	      desc     (project-endpoint project (s3-endpoints project))
+;	      endpoint (:ep desc)
+;	      region   (:region desc)]
+;		(case (-> project :aws :beanstalk :region keyword)
+;			:eu-central-1 (upload-encrypt-object* client bucket endpoint region file)
+;			(upload-object* client bucket endpoint region file))))
+;
+;; (create-s3-client project*)
+;
+;(defn s3-upload-file* [project filepath]
+;	(let [client  (create-s3-client project)]
+;		(upload-object client project filepath)
+;		(println "Uploaded" filepath "to S3 Bucket")))
+
 (defn s3-upload-file [project filepath]
   (let [bucket  (s3-bucket-name project)
         file    (io/file filepath)
@@ -115,6 +204,8 @@
       (create-bucket bucket (:region ep-desc))
       (.putObject bucket (.getName file) file))
     (println "Uploaded" (.getName file) "to S3 Bucket")))
+
+;(s3-upload-file project* "~/Workspace/zapi/target/casino.war")
 
 (defn- beanstalk-client [project]
   (doto (AWSElasticBeanstalkClient. (credentials project))
