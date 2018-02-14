@@ -41,7 +41,18 @@
 	                           :region             "eu-central-1"
 	                           :s3-endpoint        ["s3.eu-central-1.amazonaws.com" "EU_Frankfurt"]
 	                           :beanstalk-endpoint "elasticbeanstalk.eu-central-1.amazonaws.com"
-	                           :v4                 true}}})
+	                           :v4                 true
+	                           :environments
+	                           [{:name            "quality-assurance"
+	                             :cname-prefix    "test-qa"
+	                             :env             {"ENVIRONMENT" "qa"}
+	                             :platform-arm    ""
+	                             :option-settings []}
+	                            {:name            "production"
+	                             :cname-prefix    "test-prod"
+	                             :env             {"ENVIRONMENT" "production"}
+	                             :platform-arm    ""
+	                             :option-settings []}]}}})
 
 (def ^:private credentials-example
 	"(def lein-beanstalk-credentials {:access-key \"XXX\" :secret-key \"YYY\"})")
@@ -155,15 +166,6 @@
 	(when-not (.doesBucketExist client bucket)
 		(.createBucket client bucket)))
 
-(defn- s3-upload-file [project filepath]
-	(let [[endpoint region] (get-s3-endpoint project)
-	      bucket            (get-bucket-name project)
-	      file              (io/file filepath)]
-		(doto (create-s3-client project)
-		      (create-bucket bucket)
-		      (.putObject bucket (.getName file) file))
-		(println "Uploaded" (.getName file) "to S3 Bucket")))
-
 (defn- update-environment-settings [project env options]
 	(let [options          (env-var-options project env)
 	      beanstalk-client (create-beanstalk-client project)]
@@ -199,6 +201,15 @@
 	[]
 	(. (Logger/getLogger "com.amazonaws")
 		(setLevel Level/WARNING)))
+
+(defn s3-upload-file [project filepath]
+	(let [[endpoint region] (get-s3-endpoint project)
+	      bucket            (get-bucket-name project)
+	      file              (io/file filepath)]
+		(doto (create-s3-client project)
+		      (create-bucket bucket)
+		      (.putObject bucket (.getName file) file))
+		(println "Uploaded" (.getName file) "to S3 Bucket")))
 
 (defn create-app-version [project filename]
 	(let [bucket           (get-bucket-name project)
@@ -289,3 +300,5 @@
 		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
 		(poll-until terminated? #(get-env project env-name))
 		(println " Done")))
+
+(defn create-configuration-templete [project])

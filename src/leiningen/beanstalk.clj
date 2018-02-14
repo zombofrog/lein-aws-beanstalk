@@ -27,7 +27,7 @@
        (first)))
 
 (defn war-filename [project]
-  (str (:name project) "-" (aws/app-version project) ".war"))
+	(-> project :ring :uberwar-name))
 
 (defn deploy
   "Deploy the current project to Amazon Elastic Beanstalk."
