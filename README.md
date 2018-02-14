@@ -224,3 +224,7 @@ application. e.g. for Compojure add
 ```clojure
 (HEAD "/" [] "")
 ```
+
+[1]: http://aws.amazon.com/elasticbeanstalk
+[2]: http://aws.amazon.com
+[3]: http://aws.amazon.com/s3
