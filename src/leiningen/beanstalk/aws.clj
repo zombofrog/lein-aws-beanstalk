@@ -36,7 +36,7 @@
 
 (def ^:private project*
 	{:description "The misty woods of Kekistan"
-	 :aws         {:beanstalk {:app-name           "casino"
+	 :aws         {:beanstalk {:app-name           "test"
 	                           :s3-bucket          "zomboura.test"
 	                           :region             "eu-central-1"
 	                           :s3-endpoint        ["s3.eu-central-1.amazonaws.com" "EU_Frankfurt"]
@@ -81,7 +81,7 @@
 
 (defn- get-stack-name [project]
 	(or (-> project :aws :beanstalk :stack-name)
-	    "64bit Amazon Linux running Tomcat 8"))
+	    "64bit Amazon Linux 2015.09 v2.0.4 running Tomcat 8 Java 8"))
 
 (defn- v4? [project]
 	(-> project :aws :beanstalk (:v4 false)))

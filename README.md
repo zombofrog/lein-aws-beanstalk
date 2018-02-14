@@ -14,15 +14,12 @@ You will also need to be signed up for Elastic Beanstalk.
 To use lein-aws-beanstalk, you'll need to add a few additional values to
 your `project.clj` file.
 
-First, add lein-beanstalk as a plugin:
+First, add lein-aws-beanstalk as a plugin:
+
 ```clojure
-:plugins [[lein-aws-beanstalk "0.2.8"]]
+:plugins [[lein-aws-beanstalk "0.2.8-SNAPSHOT"]]
 ```
 
-or, if you're using a version of Leiningen prior to 1.7.0, add it to
-your `:dev-dependencies`:
-```clojure
-:dev-dependencies [[lein-aws-beanstalk "0.2.8"]]
 ```
 Then add a `lein-beanstalk-credentials` definition to your
 `~/.lein/init.clj` file that contains your AWS credentials:
@@ -32,7 +29,7 @@ Then add a `lein-beanstalk-credentials` definition to your
    :secret-key "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY"})
 ```
 
-Or, if you're using Leiningen 2, you can add the credentials to your
+Or you can add the credentials to your
 `~/.lein/profiles.clj` file:
 ```clojure
 {:user
@@ -215,22 +212,6 @@ To use a custom bucket, specify it in the `project.clj` file:
 :aws {:beanstalk {:s3-bucket "my-private-bucket"
                   ...}}
 ```
-### Regions
-
-You can specify the AWS region of to deploy the application to through
-your `project.clj` file:
-```clojure
-:aws {:beanstalk {:region "eu-west-1"}}
-```
-
-The following regions are recognized:
-
-* `us-east-1` (default)
-* `ap-northeast-1`
-* `eu-west-1`
-* `us-west-1`
-* `us-west-2`
-
 
 ## Trouble-Shooting
 
@@ -243,7 +224,3 @@ application. e.g. for Compojure add
 ```clojure
 (HEAD "/" [] "")
 ```
-
-[1]: http://aws.amazon.com/elasticbeanstalk
-[2]: http://aws.amazon.com
-[3]: http://aws.amazon.com/s3
