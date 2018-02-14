@@ -34,25 +34,41 @@
 (defonce ^:private current-timestamp
 	(.format (SimpleDateFormat. "yyyyMMddHHmmss") (Date.)))
 
-(def ^:private project*
-	{:description "The misty woods of Kekistan"
-	 :aws         {:beanstalk {:app-name           "test"
-	                           :s3-bucket          "zomboura.test"
-	                           :region             "eu-central-1"
-	                           :s3-endpoint        ["s3.eu-central-1.amazonaws.com" "EU_Frankfurt"]
-	                           :beanstalk-endpoint "elasticbeanstalk.eu-central-1.amazonaws.com"
-	                           :v4                 true
-	                           :environments
-	                           [{:name            "quality-assurance"
-	                             :cname-prefix    "test-qa"
-	                             :env             {"ENVIRONMENT" "qa"}
-	                             :platform-arm    ""
-	                             :option-settings []}
-	                            {:name            "production"
-	                             :cname-prefix    "test-prod"
-	                             :env             {"ENVIRONMENT" "production"}
-	                             :platform-arm    ""
-	                             :option-settings []}]}}})
+;(def ^:private project*
+;	{:description "The misty woods of Kekistan"
+;	 :aws         {:beanstalk {:app-name           "test"
+;	                           :s3-bucket          "zomboura.test"
+;	                           :region             "eu-central-1"
+;	                           :s3-endpoint        ["s3.eu-central-1.amazonaws.com" "EU_Frankfurt"]
+;	                           :beanstalk-endpoint "elasticbeanstalk.eu-central-1.amazonaws.com"
+;	                           :v4                 true
+;	                           :environments
+;	                           [{:name            "quality-assurance"
+;	                             :cname-prefix    "test-qa"
+;	                             :platform-arm    ""
+;	                             :option-settings {}}
+;	                            {:name         "production"
+;	                             :cname-prefix "test-prod"
+;	                             :platform-arm ""
+;	                             :option-settings
+;	                             {"aws:elasticbeanstalk:application:environment"
+;	                              {"ENVIRONMENT" "qa"
+;	                               "TEST_VAR"    "test"}
+;	                              "aws:autoscaling:launchconfiguration"
+;	                              {"EC2KeyName"     "ec2_key_name"
+;	                               "InstanceType"   "instance_type"
+;	                               "SecurityGroups" "security_group_id"}}}]}}})
+;
+;(reduce
+; (fn [options [namespace items]] (concat options (map #(apply vector namespace %) items)))
+; []
+; {"aws:elasticbeanstalk:application:environment"
+;  {"ENVIRONMENT" "qa"
+;   "TEST_VAR"    "test"}
+;  "aws:autoscaling:launchconfiguration"
+;  {"EC2KeyName"     "ec2_key_name"
+;   "InstanceType"   "instance_type"
+;   "SecurityGroups" "security_group_id"}})
 
 (def ^:private credentials-example
 	"(def lein-beanstalk-credentials {:access-key \"XXX\" :secret-key \"YYY\"})")
@@ -300,5 +316,3 @@
 		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
 		(poll-until terminated? #(get-env project env-name))
 		(println " Done")))
-
-(defn create-configuration-templete [project])
