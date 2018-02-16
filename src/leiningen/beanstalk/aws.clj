@@ -350,15 +350,15 @@
 
 (defn update-environment [project env]
 	(println (str "Updating '" (.getEnvironmentName env) "' environment") "(this may take several minutes)")
-	(update-environment-settings project env)
-	(poll-until ready? #(get-env project name))
+	(update-environment-senamettings project env)
+	(poll-until ready? #(get-env project (.getEnvironmentName env)))
 	(update-environment-version project env))
 
 (defn deploy-environment [project env-name]
 	(if-let [env (get-running-env project env-name)]
 		(update-environment project env)
 		(create-environment project env-name))
-	(let [env (poll-until ready? #(get-env project name))]
+	(let [env (poll-until ready? #(get-env project env-name))]
 		(println " Done")
 		(println "Environment deployed at:" (.getCNAME env))))
 
