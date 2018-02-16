@@ -40,13 +40,15 @@
 	                                         :eb "elasticbeanstalk.eu-central-1.amazonaws.com"}
 	                           :v4          true
 	                           :environments
-	                           [{:name            "quality-assurance"
-	                             :cname-prefix    "test-qa"
-	                             :platform-arm    ""
-	                             :option-settings {}}
-	                            {:name         "production"
-	                             :cname-prefix "test-prod"
-	                             :platform-arm ""
+	                           [{:name                "quality-assurance"
+	                             :cname-prefix        "test-qa"
+	                             :platform-arm        ""
+	                             :solution-stack-name "64bit Amazon Linux 2015.09 v2.0.4 running Tomcat 8 Java 8"
+	                             :option-settings     {}}
+	                            {:name                "production"
+	                             :cname-prefix        "test-prod"
+	                             :platform-arm        ""
+	                             :solution-stack-name "64bit Amazon Linux 2015.09 v2.0.4 running Tomcat 8 Java 8"
 	                             :option-settings
 	                             {"aws:elasticbeanstalk:application:environment"
 	                              {"ENVIRONMENT" "qa"
@@ -54,17 +56,23 @@
 	                              "aws:autoscaling:launchconfiguration"
 	                              {"EC2KeyName"     "ec2_key_name"
 	                               "InstanceType"   "instance_type"
-	                               "SecurityGroups" "security_group_id"}}}]}}})
+	                               "SecurityGroups" "security_grouConfigurationOptionSettingp_id"}}}]}}})
 
 (defonce ^:private current-timestamp (.format (SimpleDateFormat. "yyyyMMddHHmmss") (Date.)))
 
 ; Other
 
-(defn- ready? [environment]
-	(= (.getStatus environment) "Ready"))
-
-(defn- terminated? [environment]
-	(= (.getStatus environment) "Terminated"))
+(defn poll-until
+	"Poll a function until its value matches a predicate."
+	([pred poll]
+	 (poll-until pred poll 3000))
+	([pred poll & [delay]]
+	 (loop []
+		 (Thread/sleep delay)
+		 (print ".")
+		 (.flush *out*)
+		 (let [value (poll)]
+			 (if (pred value) value (recur))))))
 
 (defn- generate-secret-key
 	([] (.generateKey (KeyGenerator/getInstance "AES")))
@@ -73,6 +81,12 @@
 (defn- generate-keypair
 	([] (.generateKeyPair (KeyPairGenerator/getInstance "RSA")))
 	([instance] (.generateKeyPair (KeyPairGenerator/getInstance instance))))
+
+; Create bucket
+
+(defn- create-bucket [client bucket]
+	(when-not (.doesBucketExist client bucket)
+		(.createBucket client bucket)))
 
 ; Dispatchers
 
@@ -101,7 +115,7 @@
 (defn- define-app-version [{{{:keys [app-name]} :beanstalk} :aws}]
 	(str app-name "-" current-timestamp))
 
-(def define-app-version* ^:private #(assoc-in % [:aws :beanstalk :app-version] (define-app-version %)))
+(def ^:private define-app-version* #(assoc-in % [:aws :beanstalk :app-version] (define-app-version %)))
 
 ; Region
 
@@ -114,49 +128,215 @@
 (def ^:private define-region* #(assoc-in % [:aws :beanstalk :region] (define-region %)))
 ;(define-region* project-exapmle)
 
+; Currenct environment
+
+(defn- define-currenct-environment [project env-name]
+	(-> project :aws :beanstalk :environments (keyword env-name)))
+
+(def ^:private define-currenct-environment*
+	#(assoc-in %1 [:aws :beanstalk :environment] (define-currenct-environment %1 %2)))
+
+; Options settings
+
+(defn- define-option-settings [project]
+	(->> (-> project :aws :beanstalk :environment :option-settings)
+	     (reduce
+	      (fn [options [namespace items]]
+		      (concat options (map #(apply vector namespace %) items))))
+	     (map
+	      (fn [[namespace option-name value]]
+		      (ConfigurationOptionSetting. namespace option-name value)))))
+
+(def ^:private define-option-settings*
+	#(assoc-in %1 [:aws :beanstalk :environment :option-settings (define-currenct-environment %1)]))
+
 ; S3 client
 
-(defmulti ^:private create-s3-client #'is-new-region?)
+(defn- create-s3-client [credentials region endpoint]
+	(doto (AmazonS3Client. credentials)
+	      (.setRegion region)
+	      (.setEndpoint endpoint)))
 
-(defmethod create-s3-client :true
-	[{{{{:keys [s3]} :endpoints credentials :credentials region :region} :beanstalk} :aws}]
+(defn- create-s3-encrypt-client [credentials region endpoint]
 	(doto
 	 (AmazonS3EncryptionClient. credentials
 	                            (StaticEncryptionMaterialsProvider. (EncryptionMaterials. (generate-keypair)))
 	                            (CryptoConfiguration. CryptoMode/AuthenticatedEncryption))
 	 (.setRegion region)
-	 (.setEndpoint s3)))
+	 (.setEndpoint endpoint)))
 
-(defmethod create-s3-client :false
-	[{{{{:keys [s3]} :endpoints credentials :credentials region :region} :beanstalk} :aws}]
-	(doto (AmazonS3Client. credentials)
-	      (.setRegion region)
-	      (.setEndpoint s3)))
+(defmulti ^:private create-s3-client* #'is-new-region?)
 
-(def ^:private create-s3-client #(-> % create-credentials* define-region* create-s3-client*))
-;(create-s3-client project-exapmle)
+(defmethod create-s3-client* :true
+	[{{{{:keys [s3]} :endpoints credentials :credentials region :region} :beanstalk} :aws :as project}]
+	(assoc-in project [:aws :s3 :client] (create-s3-encrypt-client credentials region s3)))
+
+(defmethod create-s3-client* :false
+	[{{{{:keys [s3]} :endpoints credentials :credentials region :region} :beanstalk} :aws :as project}]
+	(assoc-in project [:aws :s3 :client] (create-s3-client credentials region s3)))
 
 ; EB client
 
-(defn- create-eb-client*
-	[{{{{:keys [eb]} :endpoints credentials  :credentials} :beanstalk} :aws}]
+(defn- create-eb-client [credentials endpoint]
 	(doto (AWSElasticBeanstalkClient. credentials)
-	      (.setEndpoint eb)))
+	      (.setEndpoint endpoint)))
 
-(def ^:private create-eb-client #(-> % create-credentials* define-region* define-app-version* ))
-
-; Bucket
-
-(defn- create-bucket [client bucket]
-	(when-not (.doesBucketExist client bucket)
-		(.createBucket client bucket)))
+(defn- create-eb-client*
+	[{{{{:keys [eb]} :endpoints credentials  :credentials} :beanstalk} :aws :as project}]
+	(assoc-in project [:aws :beanstalk :client] (create-s3-client credentials eb)))
 
 ;=======================================================================
-;
-;(defn- s3-upload-file
-;	[{{{:keys [bucket]} :beanstalk} :aws :as project} filepath]
-;	(let [file (io/file filepath)]
-;		(doto client
-;		      (create-bucket bucket)
-;		      (.putObject bucket (.getName file) file))
-;		(println "Uploaded" (.getName file) "to S3 Bucket")))
+
+(defn- update-environment-settings*
+	[{{{{:keys [option-settings]} :environment client :client} :beanstalk} :aws} env]
+	(.updateEnvironment client
+	                    (doto (UpdateEnvironmentRequest.)
+	                          (.setEnvironmentId (.getEnvironmentId env))
+	                          (.setEnvironmentName (.getEnvironmentName env))
+	                          (.setOptionSettings option-settings))))
+
+(defn- update-environment-version*
+	[{{{:keys [app-version client]} :beanstalk} :aws} env]
+	(.updateEnvironment client
+	                    (doto (UpdateEnvironmentRequest.)
+	                          (.setEnvironmentId (.getEnvironmentId env))
+	                          (.setEnvironmentName (.getEnvironmentName env))
+	                          (.setVersionLabel app-version))))
+
+(defn- s3-upload-file*
+	[{{{:keys [bucket]} :beanstalk {:keys [client]} :s3} :aws} file]
+	(doto client
+	      (create-bucket bucket)
+	      (.putObject bucket (.getName file) file)))
+
+(defn- create-app-version*
+	[{{{:keys [app-name app-version bucket client]} :beanstalk} :aws} filename]
+	(.createApplicationVersion client
+	                           (doto (CreateApplicationVersionRequest.)
+	                                 (.setAutoCreateApplication true)
+	                                 (.setApplicationName app-name)
+	                                 (.setVersionLabel app-version)
+	                                 (.setSourceBundle (S3Location. bucket filename)))))
+
+(defn- delete-app-version*
+	[{{{:keys [app-name client]} :beanstalk} :aws} version]
+	(.deleteApplicationVersion client
+	                           (doto (DeleteApplicationVersionRequest.)
+	                                 (.setApplicationName app-name)
+	                                 (.setVersionLabel version)
+	                                 (.setDeleteSourceBundle true))))
+
+(defn- get-application*
+	[{{{:keys [app-name client]} :beanstalk} :aws}]
+	(->> client
+	     .describeApplications
+	     .getApplications
+	     (filter #(= app-name (.getApplicationName %)))
+	     (first)))
+
+(defn- create-environment*
+	[{{{{:keys [name
+	            cname-prefix
+	            platform-arm
+	            solution-stack-name
+	            option-settings]} :environment
+	    app-name                  :app-name
+	    app-version               :app-version
+	    client                    :client} :beanstalk} :aws}]
+	(.createEnvironment client
+	                    (doto (CreateEnvironmentRequest.)
+	                          (.setApplicationName app-name)
+	                          (.setEnvironmentName name)
+	                          (.setVersionLabel app-version)
+	                          (.setCNAMEPrefix cname-prefix)
+	                          (.setPlatformArn platform-arm)
+	                          (.setSolutionStackName solution-stack-name)
+	                          (.setOptionSettings option-settings))))
+
+(defn- app-environments*
+	[{{{:keys [app-name client]} :beanstalk} :aws}]
+	(->> client
+	     .describeEnvironments
+	     .getEnvironments
+	     (filter #(= (.getApplicationName %) app-name))))
+
+;=======================================================================
+
+(defn ready? [environment]
+	(= (.getStatus environment) "Ready"))
+
+(defn terminated? [environment]
+	(= (.getStatus environment) "Terminated"))
+
+(defn update-environment-settings [project env]
+	(update-environment-settings*
+	 (-> project
+	     create-credentials*
+	     create-eb-client*
+	     (define-currenct-environment* (.getEnvironmentName env))
+	     define-option-settings*)
+	 env))
+
+(defn update-environment-version [project env]
+	(update-environment-version*
+	 (-> project
+	     create-credentials*
+	     define-app-version*
+	     create-eb-client*)))
+
+(defn s3-upload-file [project filepath]
+	(let [file (io/file filepath)]
+		(s3-upload-file*
+		 (-> project
+		     create-credentials*
+		     define-region*
+		     create-s3-client*)
+		 file)
+		(println "Uploaded" (.getName file) "to S3 Bucket")))
+
+(defn create-app-version [project filename]
+	(create-app-version*
+	 (-> project
+	     create-credentials*
+	     define-app-version*
+	     create-eb-client*)
+	 filename)
+	(println "Created new app version"))
+
+(defn delete-app-version [project version]
+	(delete-app-version*
+	 (-> project
+	     create-credentials*
+	     create-eb-client*)
+	 version)
+	(println "Deleted app version" version))
+
+(defn get-application [project]
+	(get-application* (-> project
+	                      create-credentials*
+	                      create-eb-client*)))
+
+(defn create-environment [project env-name]
+	(println (str "Creating '" env-name "' environment") "(this may take several minutes)")
+	(create-environment* (-> project
+	                         create-credentials*
+	                         define-app-version*
+	                         create-eb-client*
+	                         (define-currenct-environment* env-name)
+	                         define-option-settings*)))
+
+(defn app-environments [{{{:keys [app-name]} :beanstalk} :aws :as project}]
+	(-> (app-environments* (-> project create-credentials* create-eb-client*))
+	    (filter #(= app-name (.getApplicationName %)))
+	    (first)))
+
+(defn get-env [project env-name]
+	(->> (app-environments project)
+	     (filter #(= env-name (.getEnvironmentName %)))
+	     (first)))
+
+(defn get-running-env [project env-name]
+	(->> (app-environments project)
+	     (remove terminated?)
+	     (filter #(= env-name (.getEnvironmentName %)))
+	     (first)))
