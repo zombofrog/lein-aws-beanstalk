@@ -380,7 +380,7 @@
 ;(bean/clean project-exapmle)
 ;
 ;(s3-upload-file project-exapmle "/home/zomboura/Workspace/zapi/target/twp.war")
-(def version (create-app-version project-exapmle))
-version
-(def responce (deploy-environment project-exapmle "quality-assurance"))
-response
+;(def version (create-app-version project-exapmle))
+;version
+;(def responce (deploy-environment project-exapmle "quality-assurance"))
+;response
