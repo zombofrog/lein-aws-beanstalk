@@ -30,34 +30,6 @@
 		com.amazonaws.services.s3.model.CryptoMode
 		com.amazonaws.regions.RegionUtils))
 
-(def project-exapmle
-	{:description "The misty woods of Kekistan"
-	 :aws         {:beanstalk {:app-name    "twp"
-	                           :bucket      "zomboura.test"
-	                           :region      "eu-central-1"
-	                           :region-name "EU_Frankfurt"
-	                           :endpoints   {:s3 "s3.eu-central-1.amazonaws.com"
-	                                         :eb "elasticbeanstalk.eu-central-1.amazonaws.com"}
-	                           :v4          true
-	                           :environments
-	                           [{:name                "twp-qa"
-	                             :description         "TWP QUALITY ASSURANCE"
-	                             :cname-prefix        "twp-qa"
-	                             :solution-stack-name "64bit Amazon Linux 2017.09 v2.7.5 running Tomcat 8 Java 8"
-	                             :option-settings
-	                             {"aws:elasticbeanstalk:application:environment"
-	                              {"ENVIRONMENT" "qa"}
-	                              "aws:autoscaling:launchconfiguration"
-	                              {"EC2KeyName"         "hydra-cluster"
-	                               "IamInstanceProfile" "aws-elasticbeanstalk-ec2-role"
-	                               "ImageId"            "ami-6438a40b"}
-	                              "aws:ec2:vpc"
-	                              {"VPCId"                    "vpc-b2417dda"
-	                               "Subnets"                  "subnet-6926e602"
-	                               "ELBSubnets"               "subnet-6926e602"
-	                               "ELBScheme"                "external"
-	                               "AssociatePublicIpAddress" "true"}}}]}}})
-
 (defonce ^:private current-timestamp (.format (SimpleDateFormat. "yyyyMMddHHmmss") (Date.)))
 
 (defn quiet-logger
@@ -215,16 +187,16 @@
 	[{{{:keys [bucket app-version]} :beanstalk {:keys [client]} :s3} :aws} file]
 	(doto client
 	      (create-bucket bucket)
-	      (.putObject bucket app-version file)))
+	      (.putObject bucket (str app-version ".war") file)))
 
 (defn- create-app-version*
-	[{{{:keys [app-name app-version bucket client]} :beanstalk} :aws} filename]
+	[{{{:keys [app-name app-version bucket client]} :beanstalk} :aws}]
 	(.createApplicationVersion client
 	                           (doto (CreateApplicationVersionRequest.)
 	                                 (.withAutoCreateApplication true)
 	                                 (.withApplicationName app-name)
 	                                 (.withVersionLabel app-version)
-	                                 (.withSourceBundle (S3Location. bucket app-version)))))
+	                                 (.withSourceBundle (S3Location. bucket (str app-version ".war"))))))
 
 (defn- delete-app-version*
 	[{{{:keys [app-name client]} :beanstalk} :aws} version]
@@ -311,13 +283,12 @@
 		 file)
 		(println "Uploaded" (.getName file) "to S3 Bucket")))
 
-(defn create-app-version [project filename]
+(defn create-app-version [project]
 	(create-app-version*
 	 (-> project
 	     create-credentials*
 	     define-app-version*
-	     create-eb-client*)
-	 filename)
+	     create-eb-client*))
 	;(println "Created new app version")
 	)
 
@@ -409,6 +380,7 @@
 ;(bean/clean project-exapmle)
 ;
 ;(s3-upload-file project-exapmle "/home/zomboura/Workspace/zapi/target/twp.war")
-;(def version (create-app-version project-exapmle (str current-timestamp "-" "twp.war")))
-;(def version (create-app-version project-exapmle "twp.war"))
-;(def responce (deploy-environment project-exapmle "twp-qa"))
+(def version (create-app-version project-exapmle))
+version
+(def responce (deploy-environment project-exapmle "quality-assurance"))
+response
