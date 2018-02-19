@@ -17,6 +17,21 @@
 	 (for [env (aws/app-environments project)]
 		 (str (.getEnvironmentName env) " (" (.getStatus env) ")"))))
 
+(defn- print-env [env]
+	(println
+	 (str "Environment ID:    " (.getEnvironmentId env) "\n"
+	      "Application Name:  " (.getApplicationName env) "\n"
+	      "Environment Name:  " (.getEnvironmentName env) "\n"
+	      "Description:       " (.getDescription env) "\n"
+	      "URL:               " (.getCNAME env) "\n"
+	      "Load Balancer URL: " (.getEndpointURL env) "\n"
+	      "Status:            " (.getStatus env) "\n"
+	      "Health:            " (.getHealth env) "\n"
+	      "Current Version:   " (.getVersionLabel env) "\n"
+	      "Solution Stack:    " (.getSolutionStackName env) "\n"
+	      "Created On:        " (.getDateCreated env) "\n"
+	      "Updated On:        " (.getDateUpdated env))))
+
 (defn deploy
 	"Deploy the current project to Amazon Elastic Beanstalk."
 	([project]
@@ -51,24 +66,14 @@
 
 (defn env-info
 	"Displays information about a Beanstalk environment."
-	[project env-name]
-	(if-let [env (aws/get-env project env-name)]
-		(println
-		 (str "Environment ID:    " (.getEnvironmentId env) "\n"
-		      "Application Name:  " (.getApplicationName env) "\n"
-		      "Environment Name:  " (.getEnvironmentName env) "\n"
-		      "Description:       " (.getDescription env) "\n"
-		      "URL:               " (.getCNAME env) "\n"
-		      "Load Balancer URL: " (.getEndpointURL env) "\n"
-		      "Status:            " (.getStatus env) "\n"
-		      "Health:            " (.getHealth env) "\n"
-		      "Current Version:   " (.getVersionLabel env) "\n"
-		      "Solution Stack:    " (.getSolutionStackName env) "\n"
-		      "Created On:        " (.getDateCreated env) "\n"
-		      "Updated On:        " (.getDateUpdated env)))
-		(println
-		 (str "Environment '" env-name "' "
-		      "not found on AWS Elastic Beanstalk"))))
+	([project]
+	 (clojure.pprint/pprint (aws/describe-environments project))
+	 (doseq [env (aws/describe-environments project)]
+		 (print-env env)))
+	([project env-name]
+	 (if-let [env (aws/get-env project env-name)]
+		 (print-env env)
+		 (println (str "Environment '" env-name "' " "not found on AWS Elastic Beanstalk")))))
 
 (defn info
 	"Provides info for about project on Amazon Elastic Beanstalk."

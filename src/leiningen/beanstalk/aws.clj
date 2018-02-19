@@ -30,26 +30,33 @@
 		com.amazonaws.services.s3.model.CryptoMode
 		com.amazonaws.regions.RegionUtils))
 
-;(def ^:private project-exapmle
-;	{:description "The misty woods of Kekistan"
-;	 :aws         {:beanstalk {:app-name    "test"
-;	                           :bucket      "zomboura.test"
-;	                           :region      "eu-central-1"
-;	                           :region-name "EU_Frankfurt"
-;	                           :endpoints   {:s3 "s3.eu-central-1.amazonaws.com"
-;	                                         :eb "elasticbeanstalk.eu-central-1.amazonaws.com"}
-;	                           :v4          true
-;	                           :environments
-;	                           [{:name                "quality-assurance"
-;	                             :cname-prefix        "test-qa"
-;	                             :platform-arm        ""
-;	                             :solution-stack-name "64bit Amazon Linux 2015.09 v2.0.4 running Tomcat 8 Java 8"
-;	                             :option-settings     {}}
-;	                            {:name                "production"
-;	                             :cname-prefix        "test-prod"
-;	                             :platform-arm        ""
-;	                             :solution-stack-name "64bit Amazon Linux 2015.09 v2.0.4 running Tomcat 8 Java 8"
-;	                             :option-settings     {}}]}}})
+(def project-exapmle
+	{:description "The misty woods of Kekistan"
+	 :aws         {:beanstalk {:app-name    "twp"
+	                           :bucket      "zomboura.test"
+	                           :region      "eu-central-1"
+	                           :region-name "EU_Frankfurt"
+	                           :endpoints   {:s3 "s3.eu-central-1.amazonaws.com"
+	                                         :eb "elasticbeanstalk.eu-central-1.amazonaws.com"}
+	                           :v4          true
+	                           :environments
+	                           [{:name                "twp-qa"
+	                             :description         "TWP QUALITY ASSURANCE"
+	                             :cname-prefix        "twp-qa"
+	                             :solution-stack-name "64bit Amazon Linux 2017.09 v2.7.5 running Tomcat 8 Java 8"
+	                             :option-settings
+	                             {"aws:elasticbeanstalk:application:environment"
+	                              {"ENVIRONMENT" "qa"}
+	                              "aws:autoscaling:launchconfiguration"
+	                              {"EC2KeyName"         "hydra-cluster"
+	                               "IamInstanceProfile" "aws-elasticbeanstalk-ec2-role"
+	                               "ImageId"            "ami-6438a40b"}
+	                              "aws:ec2:vpc"
+	                              {"VPCId"                    "vpc-b2417dda"
+	                               "Subnets"                  "subnet-6926e602"
+	                               "ELBSubnets"               "subnet-6926e602"
+	                               "ELBScheme"                "external"
+	                               "AssociatePublicIpAddress" "true"}}}]}}})
 
 (defonce ^:private current-timestamp (.format (SimpleDateFormat. "yyyyMMddHHmmss") (Date.)))
 
@@ -129,7 +136,9 @@
 ; Currenct environment
 
 (defn- define-currenct-environment [project env-name]
-	(-> project :aws :beanstalk :environments (keyword env-name)))
+	(->> (-> project :aws :beanstalk :environments)
+	     (filter #(= env-name (:name %)))
+	     (first)))
 
 (def ^:private define-currenct-environment*
 	#(assoc-in %1 [:aws :beanstalk :environment] (define-currenct-environment %1 %2)))
@@ -140,13 +149,14 @@
 	(->> (-> project :aws :beanstalk :environment :option-settings)
 	     (reduce
 	      (fn [options [namespace items]]
-		      (concat options (map #(apply vector namespace %) items))))
+		      (concat options (map #(apply vector namespace %) items)))
+	      [])
 	     (map
 	      (fn [[namespace option-name value]]
 		      (ConfigurationOptionSetting. namespace option-name value)))))
 
 (def ^:private define-option-settings*
-	#(assoc-in %1 [:aws :beanstalk :environment :option-settings (define-currenct-environment %1)]))
+	#(assoc-in %1 [:aws :beanstalk :environment :option-settings] (define-option-settings %1)))
 
 ; S3 client
 
@@ -166,11 +176,11 @@
 (defmulti ^:private create-s3-client* #'is-new-region?)
 
 (defmethod create-s3-client* :true
-	[{{{{:keys [s3]} :endpoints credentials :credentials region :region} :beanstalk} :aws :as project}]
+	[{{{{:keys [s3]} :endpoints region :region} :beanstalk credentials :credentials} :aws :as project}]
 	(assoc-in project [:aws :s3 :client] (create-s3-encrypt-client credentials region s3)))
 
 (defmethod create-s3-client* :false
-	[{{{{:keys [s3]} :endpoints credentials :credentials region :region} :beanstalk} :aws :as project}]
+	[{{{{:keys [s3]} :endpoints region :region} :beanstalk credentials :credentials} :aws :as project}]
 	(assoc-in project [:aws :s3 :client] (create-s3-client credentials region s3)))
 
 ; EB client
@@ -180,8 +190,8 @@
 	      (.setEndpoint endpoint)))
 
 (defn- create-eb-client*
-	[{{{{:keys [eb]} :endpoints credentials  :credentials} :beanstalk} :aws :as project}]
-	(assoc-in project [:aws :beanstalk :client] (create-s3-client credentials eb)))
+	[{{{{:keys [eb]} :endpoints} :beanstalk credentials :credentials} :aws :as project}]
+	(assoc-in project [:aws :beanstalk :client] (create-eb-client credentials eb)))
 
 ;=======================================================================
 
@@ -202,19 +212,19 @@
 	                          (.setVersionLabel app-version))))
 
 (defn- s3-upload-file*
-	[{{{:keys [bucket]} :beanstalk {:keys [client]} :s3} :aws} file]
+	[{{{:keys [bucket app-version]} :beanstalk {:keys [client]} :s3} :aws} file]
 	(doto client
 	      (create-bucket bucket)
-	      (.putObject bucket (.getName file) file)))
+	      (.putObject bucket app-version file)))
 
 (defn- create-app-version*
 	[{{{:keys [app-name app-version bucket client]} :beanstalk} :aws} filename]
 	(.createApplicationVersion client
 	                           (doto (CreateApplicationVersionRequest.)
-	                                 (.setAutoCreateApplication true)
-	                                 (.setApplicationName app-name)
-	                                 (.setVersionLabel app-version)
-	                                 (.setSourceBundle (S3Location. bucket filename)))))
+	                                 (.withAutoCreateApplication true)
+	                                 (.withApplicationName app-name)
+	                                 (.withVersionLabel app-version)
+	                                 (.withSourceBundle (S3Location. bucket app-version)))))
 
 (defn- delete-app-version*
 	[{{{:keys [app-name client]} :beanstalk} :aws} version]
@@ -234,8 +244,8 @@
 
 (defn- create-environment*
 	[{{{{:keys [name
+	            description
 	            cname-prefix
-	            platform-arm
 	            solution-stack-name
 	            option-settings]} :environment
 	    app-name                  :app-name
@@ -245,18 +255,19 @@
 	                    (doto (CreateEnvironmentRequest.)
 	                          (.setApplicationName app-name)
 	                          (.setEnvironmentName name)
+	                          (.setDescription description)
 	                          (.setVersionLabel app-version)
 	                          (.setCNAMEPrefix cname-prefix)
-	                          (.setPlatformArn platform-arm)
 	                          (.setSolutionStackName solution-stack-name)
 	                          (.setOptionSettings option-settings))))
 
+(defn- describe-environments*
+	[{{{:keys [client]} :beanstalk} :aws}]
+	(.getEnvironments (.describeEnvironments client)))
+
 (defn- app-environments*
-	[{{{:keys [app-name client]} :beanstalk} :aws}]
-	(->> client
-	     .describeEnvironments
-	     .getEnvironments
-	     (filter #(= (.getApplicationName %) app-name))))
+	[{{{:keys [app-name client]} :beanstalk} :aws :as project}]
+	(filter #(= (.getApplicationName %) app-name) (describe-environments* project)))
 
 (defn- terminate-environment* [{{{:keys [client]} :beanstalk} :aws} env]
 	(.terminateEnvironment client
@@ -295,6 +306,7 @@
 		 (-> project
 		     create-credentials*
 		     define-region*
+		     define-app-version*
 		     create-s3-client*)
 		 file)
 		(println "Uploaded" (.getName file) "to S3 Bucket")))
@@ -306,7 +318,8 @@
 	     define-app-version*
 	     create-eb-client*)
 	 filename)
-	(println "Created new app version"))
+	;(println "Created new app version")
+	)
 
 (defn delete-app-version [project version]
 	(delete-app-version*
@@ -322,10 +335,21 @@
 	     create-credentials*
 	     create-eb-client*)))
 
+(defn describe-environments [project]
+	(describe-environments*
+	 (-> project
+	     create-credentials*
+	     create-eb-client*)))
+
+;(describe-environments project-exapmle)
+
+;(filter #(= (.getApplicationName %) "hello-world") (describe-environments project-exapmle))
+
 (defn app-environments [{{{:keys [app-name]} :beanstalk} :aws :as project}]
-	(-> (app-environments* (-> project create-credentials* create-eb-client*))
-	    (filter #(= app-name (.getApplicationName %)))
-	    (first)))
+	(->> (app-environments* (-> project create-credentials* create-eb-client*))
+	     (filter #(= app-name (.getApplicationName %)))))
+
+;(app-environments project-exapmle)
 
 (defn get-env [project env-name]
 	(->> (app-environments project)
@@ -350,7 +374,7 @@
 
 (defn update-environment [project env]
 	(println (str "Updating '" (.getEnvironmentName env) "' environment") "(this may take several minutes)")
-	(update-environment-senamettings project env)
+	(update-environment-settings project env)
 	(poll-until ready? #(get-env project (.getEnvironmentName env)))
 	(update-environment-version project env))
 
@@ -358,9 +382,10 @@
 	(if-let [env (get-running-env project env-name)]
 		(update-environment project env)
 		(create-environment project env-name))
-	(let [env (poll-until ready? #(get-env project env-name))]
-		(println " Done")
-		(println "Environment deployed at:" (.getCNAME env))))
+;	(let [env (poll-until ready? #(get-env project env-name))]
+;		(println " Done")
+;		(println "Environment deployed at:" (.getCNAME env)))
+	)
 
 (defn terminate-environment [project env-name]
 	(when-let [env (get-running-env project env-name)]
@@ -369,6 +394,21 @@
 		     create-credentials*
 		     create-eb-client*)
 		 env)
-		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
-		(poll-until terminated? #(get-env project env-name))
-		(println " Done")))
+
+;		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
+;		(poll-until terminated? #(get-env project env-name))
+;		(println " Done")
+
+		))
+
+;(require '[leiningen.beanstalk :as bean])
+;(bean/info project-exapmle "twp-qa")
+;(bean/info project-exapmle)
+
+;(bean/terminate project-exapmle "twp-qa")
+;(bean/clean project-exapmle)
+;
+;(s3-upload-file project-exapmle "/home/zomboura/Workspace/zapi/target/twp.war")
+;(def version (create-app-version project-exapmle (str current-timestamp "-" "twp.war")))
+;(def version (create-app-version project-exapmle "twp.war"))
+;(def responce (deploy-environment project-exapmle "twp-qa"))
