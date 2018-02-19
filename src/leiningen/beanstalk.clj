@@ -40,7 +40,7 @@
 	 (let [filename (-> project :ring :uberwar-name)
 	       path     (uberwar project filename)]
 		 (aws/s3-upload-file project path)
-		 (aws/create-app-version project filename)
+		 (aws/create-app-version project)
 		 (aws/deploy-environment project env-name))))
 
 (defn terminate
