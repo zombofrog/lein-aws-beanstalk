@@ -107,7 +107,6 @@
 (defmethod define-region :false [{{{:keys [region-name]} :beanstalk} :aws}] (Region/valueOf region-name))
 
 (def ^:private define-region* #(assoc-in % [:aws :beanstalk :region] (define-region %)))
-;(define-region* project-exapmle)
 
 ; Currenct environment
 
@@ -138,7 +137,6 @@
 
 (defn- create-s3-client [credentials region endpoint]
 	(doto (AmazonS3Client. credentials)
-	      (.setRegion region)
 	      (.setEndpoint endpoint)))
 
 (defn- create-s3-encrypt-client [credentials region endpoint]
