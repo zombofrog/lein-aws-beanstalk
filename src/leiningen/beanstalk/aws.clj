@@ -198,9 +198,12 @@
 	(.createApplicationVersion client
 	                           (doto (CreateApplicationVersionRequest.)
 	                                 (.withAutoCreateApplication true)
+	                                 (.withProcess true)
 	                                 (.withApplicationName app-name)
 	                                 (.withVersionLabel app-version)
-	                                 (.withSourceBundle (S3Location. bucket (str app-version ".war"))))))
+	                                 (.withSourceBundle (doto (S3Location.)
+	                                                          (.withS3Bucket bucket)
+	                                                          (.withS3Key (str app-version ".war")))))))
 
 (defn- delete-app-version*
 	[{{{:keys [app-name client]} :beanstalk} :aws} version]
@@ -289,8 +292,7 @@
 	    define-app-version*
 	    create-eb-client*
 	    create-app-version*)
-	;(println "Created new app version")
-	)
+	(println "Created new app version:" (-> project :aws :beanstalk :app-version)))
 
 (defn delete-app-version [project version]
 	(-> project
@@ -311,15 +313,9 @@
 	    create-eb-client*
 	    describe-environments*))
 
-;(describe-environments project-exapmle)
-
-;(filter #(= (.getApplicationName %) "hello-world") (describe-environments project-exapmle))
-
 (defn app-environments [{{{:keys [app-name]} :beanstalk} :aws :as project}]
 	(->> (app-environments* (-> project create-credentials* create-eb-client*))
 	     (filter #(= app-name (.getApplicationName %)))))
-
-;(app-environments project-exapmle)
 
 (defn get-env [project env-name]
 	(->> (app-environments project)
@@ -354,22 +350,17 @@
 		(create-environment project env-name))
 	(let [env (poll-until ready? #(get-env project env-name))]
 		(println " Done")
-		(println "Environment deployed at:" (.getCNAME env)))
-	)
+		(println "Environment deployed at:" (.getCNAME env))))
 
 (defn terminate-environment [project env-name]
 	(when-let [env (get-running-env project env-name)]
-		(terminate-environment*
-		 (-> project
-		     create-credentials*
-		     create-eb-client*)
-		 env)
-
+		(-> project
+		    create-credentials*
+		    create-eb-client*
+		    (terminate-environment* env))
 		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
 		(poll-until terminated? #(get-env project env-name))
-		(println " Done")
-
-		))
+		(println " Done")))
 
 ;(require '[leiningen.beanstalk :as bean])
 ;(require '[leiningen.example :as example])
