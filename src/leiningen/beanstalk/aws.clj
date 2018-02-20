@@ -28,6 +28,7 @@
 		com.amazonaws.services.s3.model.ObjectMetadata
 		com.amazonaws.services.s3.model.CryptoConfiguration
 		com.amazonaws.services.s3.model.CryptoMode
+		com.amazonaws.services.s3.model.CannedAccessControlList
 		com.amazonaws.regions.RegionUtils))
 
 (defonce ^:private current-timestamp (.format (SimpleDateFormat. "yyyyMMddHHmmss") (Date.)))
@@ -62,7 +63,10 @@
 
 (defn- create-bucket [client bucket]
 	(when-not (.doesBucketExist client bucket)
-		(.createBucket client bucket)))
+		(doto client
+		      (.createBucket bucket)
+		      ;(.setBucketAcl bucket CannedAccessControlList/BucketOwnerFullControl)
+		      )))
 
 ; Dispatchers
 
@@ -171,17 +175,17 @@
 	[{{{{:keys [option-settings]} :environment client :client} :beanstalk} :aws} env]
 	(.updateEnvironment client
 	                    (doto (UpdateEnvironmentRequest.)
-	                          (.setEnvironmentId (.getEnvironmentId env))
-	                          (.setEnvironmentName (.getEnvironmentName env))
-	                          (.setOptionSettings option-settings))))
+	                          (.withEnvironmentId (.getEnvironmentId env))
+	                          (.withEnvironmentName (.getEnvironmentName env))
+	                          (.withOptionSettings option-settings))))
 
 (defn- update-environment-version*
 	[{{{:keys [app-version client]} :beanstalk} :aws} env]
 	(.updateEnvironment client
 	                    (doto (UpdateEnvironmentRequest.)
-	                          (.setEnvironmentId (.getEnvironmentId env))
-	                          (.setEnvironmentName (.getEnvironmentName env))
-	                          (.setVersionLabel app-version))))
+	                          (.withEnvironmentId (.getEnvironmentId env))
+	                          (.withEnvironmentName (.getEnvironmentName env))
+	                          (.withVersionLabel app-version))))
 
 (defn- s3-upload-file*
 	[{{{:keys [bucket app-version]} :beanstalk {:keys [client]} :s3} :aws} file]
@@ -202,9 +206,9 @@
 	[{{{:keys [app-name client]} :beanstalk} :aws} version]
 	(.deleteApplicationVersion client
 	                           (doto (DeleteApplicationVersionRequest.)
-	                                 (.setApplicationName app-name)
-	                                 (.setVersionLabel version)
-	                                 (.setDeleteSourceBundle true))))
+	                                 (.withApplicationName app-name)
+	                                 (.withVersionLabel version)
+	                                 (.withDeleteSourceBundle true))))
 
 (defn- get-application*
 	[{{{:keys [app-name client]} :beanstalk} :aws}]
@@ -225,13 +229,13 @@
 	    client                    :client} :beanstalk} :aws}]
 	(.createEnvironment client
 	                    (doto (CreateEnvironmentRequest.)
-	                          (.setApplicationName app-name)
-	                          (.setEnvironmentName name)
-	                          (.setDescription description)
-	                          (.setVersionLabel app-version)
-	                          (.setCNAMEPrefix cname-prefix)
-	                          (.setSolutionStackName solution-stack-name)
-	                          (.setOptionSettings option-settings))))
+	                          (.withApplicationName app-name)
+	                          (.withEnvironmentName name)
+	                          (.withDescription description)
+	                          (.withVersionLabel app-version)
+	                          (.withCNAMEPrefix cname-prefix)
+	                          (.withSolutionStackName solution-stack-name)
+	                          (.withOptionSettings option-settings))))
 
 (defn- describe-environments*
 	[{{{:keys [client]} :beanstalk} :aws}]
@@ -244,8 +248,8 @@
 (defn- terminate-environment* [{{{:keys [client]} :beanstalk} :aws} env]
 	(.terminateEnvironment client
 	                       (doto (TerminateEnvironmentRequest.)
-	                             (.setEnvironmentId (.getEnvironmentId env))
-	                             (.setEnvironmentName (.getEnvironmentName env)))))
+	                             (.withEnvironmentId (.getEnvironmentId env))
+	                             (.withEnvironmentName (.getEnvironmentName env)))))
 
 ;=======================================================================
 
@@ -256,61 +260,56 @@
 	(= (.getStatus environment) "Terminated"))
 
 (defn update-environment-settings [project env]
-	(update-environment-settings*
-	 (-> project
-	     create-credentials*
-	     create-eb-client*
-	     (define-currenct-environment* (.getEnvironmentName env))
-	     define-option-settings*)
-	 env))
+	(-> project
+	    create-credentials*
+	    create-eb-client*
+	    (define-currenct-environment* (.getEnvironmentName env))
+	    define-option-settings*
+	    (update-environment-settings* env)))
 
 (defn update-environment-version [project env]
-	(update-environment-version*
-	 (-> project
-	     create-credentials*
-	     define-app-version*
-	     create-eb-client*)
-	 env))
+	(-> project
+	    create-credentials*
+	    define-app-version*
+	    create-eb-client*
+	    (update-environment-version* env)))
 
 (defn s3-upload-file [project filepath]
-	(let [file (io/file filepath)]
-		(s3-upload-file*
-		 (-> project
-		     create-credentials*
-		     define-region*
-		     define-app-version*
-		     create-s3-client*)
-		 file)
-		(println "Uploaded" (.getName file) "to S3 Bucket")))
+	(-> project
+	    create-credentials*
+	    define-region*
+	    define-app-version*
+	    create-s3-client*
+	    (s3-upload-file* (io/file filepath)))
+	(println "Uploaded" filepath "to S3 Bucket"))
 
 (defn create-app-version [project]
-	(create-app-version*
-	 (-> project
-	     create-credentials*
-	     define-app-version*
-	     create-eb-client*))
+	(-> project
+	    create-credentials*
+	    define-app-version*
+	    create-eb-client*
+	    create-app-version*)
 	;(println "Created new app version")
 	)
 
 (defn delete-app-version [project version]
-	(delete-app-version*
-	 (-> project
-	     create-credentials*
-	     create-eb-client*)
-	 version)
+	(-> project
+	    create-credentials*
+	    create-eb-client*
+	    (delete-app-version* version))
 	(println "Deleted app version" version))
 
 (defn get-application [project]
-	(get-application*
-	 (-> project
-	     create-credentials*
-	     create-eb-client*)))
+	(-> project
+	    create-credentials*
+	    create-eb-client*
+	    get-application*))
 
 (defn describe-environments [project]
-	(describe-environments*
-	 (-> project
-	     create-credentials*
-	     create-eb-client*)))
+	(-> project
+	    create-credentials*
+	    create-eb-client*
+	    describe-environments*))
 
 ;(describe-environments project-exapmle)
 
@@ -353,9 +352,9 @@
 	(if-let [env (get-running-env project env-name)]
 		(update-environment project env)
 		(create-environment project env-name))
-;	(let [env (poll-until ready? #(get-env project env-name))]
-;		(println " Done")
-;		(println "Environment deployed at:" (.getCNAME env)))
+	(let [env (poll-until ready? #(get-env project env-name))]
+		(println " Done")
+		(println "Environment deployed at:" (.getCNAME env)))
 	)
 
 (defn terminate-environment [project env-name]
@@ -366,21 +365,30 @@
 		     create-eb-client*)
 		 env)
 
-;		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
-;		(poll-until terminated? #(get-env project env-name))
-;		(println " Done")
+		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
+		(poll-until terminated? #(get-env project env-name))
+		(println " Done")
 
 		))
 
 ;(require '[leiningen.beanstalk :as bean])
-;(bean/info project-exapmle "twp-qa")
-;(bean/info project-exapmle)
+;(require '[leiningen.example :as example])
 
-;(bean/terminate project-exapmle "twp-qa")
+;(def env* (-> leiningen.example/project-example :aws :beanstalk :environments first :name))
+;env*
+
+;(bean/info leiningen.example/project-example env*)
+
+;(bean/info leiningen.example/project-example)
+
+;(bean/terminate leiningen.example/project-example env*)
 ;(bean/clean project-exapmle)
 ;
-;(s3-upload-file project-exapmle "/home/zomboura/Workspace/zapi/target/twp.war")
-;(def version (create-app-version project-exapmle))
+;(s3-upload-file leiningen.example/project-example "/home/zomboura/Workspace/zapi/target/twp.war")
+
+;(s3-upload-file leiningen.example/project-example "/home/zomboura/Workspace/hello-world-war/dist/hello-world.war")
+
+;(def version (create-app-version leiningen.example/project-example))
 ;version
-;(def responce (deploy-environment project-exapmle "quality-assurance"))
+;(def responce (deploy-environment leiningen.example/project-example env*))
 ;response
