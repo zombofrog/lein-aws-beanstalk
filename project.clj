@@ -15,8 +15,4 @@
 
 	:plugins
 	[[lein-ring "0.12.3"]
-	 [lein-ancient "0.6.15" :exclusions [org.clojure/clojure]]]
-
-	:profiles
-	{:dev      {:dependencies [[org.bouncycastle/bcprov-jdk15on ~bcprov-jdk15on-version]]}
-	 :provided {:dependencies [[org.bouncycastle/bcprov-jdk15on ~bcprov-jdk15on-version]]}})
+	 [lein-ancient "0.6.15" :exclusions [org.clojure/clojure]]])
