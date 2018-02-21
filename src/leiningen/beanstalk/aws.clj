@@ -5,8 +5,6 @@
 	(:import
 		java.text.SimpleDateFormat
 		[java.util.logging Logger Level]
-		[java.security KeyPairGenerator]
-		[javax.crypto KeyGenerator]
 		[java.util Date UUID]
 		com.amazonaws.auth.AWSCredentials
 		com.amazonaws.auth.BasicAWSCredentials
@@ -16,23 +14,11 @@
 		com.amazonaws.services.elasticbeanstalk.model.ConfigurationOptionSetting
 		com.amazonaws.services.elasticbeanstalk.model.CreateApplicationVersionRequest
 		com.amazonaws.services.elasticbeanstalk.model.CreateEnvironmentRequest
-		com.amazonaws.services.elasticbeanstalk.model.DeleteApplicationRequest
 		com.amazonaws.services.elasticbeanstalk.model.DeleteApplicationVersionRequest
-		com.amazonaws.services.elasticbeanstalk.model.DescribeEnvironmentsRequest
 		com.amazonaws.services.elasticbeanstalk.model.UpdateEnvironmentRequest
 		com.amazonaws.services.elasticbeanstalk.model.S3Location
 		com.amazonaws.services.elasticbeanstalk.model.TerminateEnvironmentRequest
-		com.amazonaws.services.s3.AmazonS3ClientBuilder
-		com.amazonaws.services.s3.AmazonS3EncryptionClientBuilder
-		com.amazonaws.services.s3.model.Region
-		com.amazonaws.services.s3.model.EncryptionMaterials
-		com.amazonaws.services.s3.model.StaticEncryptionMaterialsProvider
-		com.amazonaws.services.s3.model.PutObjectRequest
-		com.amazonaws.services.s3.model.ObjectMetadata
-		com.amazonaws.services.s3.model.CryptoConfiguration
-		com.amazonaws.services.s3.model.CryptoMode
-		com.amazonaws.services.s3.model.CannedAccessControlList
-		com.amazonaws.regions.RegionUtils))
+		com.amazonaws.services.s3.AmazonS3ClientBuilder))
 
 ; HELPERS
 
