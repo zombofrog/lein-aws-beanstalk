@@ -249,7 +249,7 @@
 	    app-version*
 	    create-eb-client*
 	    create-app-version*)
-	(println "Created new app version:" (-> project :aws :beanstalk :app-version)))
+	(println "Created new app version:" (app-version project)))
 
 (defn delete-app-version [project version]
 	(-> project
@@ -283,13 +283,13 @@
 (defn describe-envs [project]
 	(-> project
 	    credentials*
-	    create-s3-client*
+	    create-eb-client*
 	    describe-envs*))
 
 (defn describe-app-envs [project]
 	(-> project
 	    credentials*
-	    create-s3-client*
+	    create-eb-client*
 	    describe-app-envs*))
 
 (defn get-env [project env-name]
