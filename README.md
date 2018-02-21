@@ -1,5 +1,7 @@
 # lein-aws-beanstalk
 
+[![Clojars Project](https://img.shields.io/clojars/v/lein-aws-beanstalk.svg)](https://clojars.org/lein-aws-beanstalk)
+
 Leiningen plugin for Amazon's [Elastic Beanstalk][1].
 
 ## Prerequisites
