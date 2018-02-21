@@ -10,9 +10,6 @@
 	:eval-in-leiningen true
 
 	:dependencies [[org.clojure/clojure "1.9.0"]
-	               [com.amazonaws/aws-java-sdk ~aws-java-sdk-version]
-	               [org.bouncycastle/bcprov-jdk15on ~bcprov-jdk15on-version]]
+	               [com.amazonaws/aws-java-sdk ~aws-java-sdk-version]]
 
-	:plugins
-	[[lein-ring "0.12.3"]
-	 [lein-ancient "0.6.15" :exclusions [org.clojure/clojure]]])
+	:plugins [[lein-ring "0.12.3"]])
