@@ -299,7 +299,7 @@
 	    credentials*
 	    create-s3-client*
 	    describe-envs*))
-;app-environments
+
 (defn describe-app-envs [project]
 	(-> project
 	    credentials*
@@ -333,7 +333,7 @@
 	(poll-until ready? #(get-env project (.getEnvironmentName env)))
 	(update-env-version project env))
 
-(defn deploy-environment [project env-name]
+(defn deploy-env [project env-name]
 	(if-let [env (get-running-env project env-name)]
 		(update-env project env)
 		(create-env project env-name))

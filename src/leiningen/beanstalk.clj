@@ -14,7 +14,7 @@
 (defn- deployed-envs-info [project]
 	(str/join
 	 app-info-indent
-	 (for [env (aws/app-environments project)]
+	 (for [env (aws/describe-app-envs project)]
 		 (str (.getEnvironmentName env) " (" (.getStatus env) ")"))))
 
 (defn- print-env [env]
@@ -39,21 +39,21 @@
 	([project env-name]
 	 (let [filename (-> project :ring :uberwar-name)
 	       path     (uberwar project filename)]
-		 (aws/s3-upload-file project path)
+		 (aws/upload-file project path)
 		 (aws/create-app-version project)
-		 (aws/deploy-environment project env-name))))
+		 (aws/deploy-env project env-name))))
 
 (defn terminate
 	"Terminate the environment for the current project on Amazon Elastic Beanstalk."
 	([project]
 	 (println "Usage: lein beanstalk terminate <environment>"))
 	([project env-name]
-	 (aws/terminate-environment project env-name)))
+	 (aws/terminate-env project env-name)))
 
 (defn app-info
 	"Displays information about a Beanstalk application."
 	[project]
-	(if-let [app (aws/get-application project)]
+	(if-let [app (aws/describe-app project)]
 		(println
 		 (str "Application Name: " (.getApplicationName app) "\n"
 		      "Last 5 Versions:  " (last-versions-info app) "\n"
@@ -67,8 +67,7 @@
 (defn env-info
 	"Displays information about a Beanstalk environment."
 	([project]
-	 (clojure.pprint/pprint (aws/describe-environments project))
-	 (doseq [env (aws/describe-environments project)]
+	 (doseq [env (aws/describe-envs project)]
 		 (print-env env)))
 	([project env-name]
 	 (if-let [env (aws/get-env project env-name)]
@@ -85,10 +84,10 @@
 (defn clean
 	"Cleans out old versions, except the ones currently deployed."
 	[project]
-	(let [all-versions      (set (.getVersions (aws/get-application project)))
+	(let [all-versions      (set (.getVersions (aws/describe-app project)))
 	      deployed-versions (set
 	                         (map #(.getVersionLabel %)
-	                              (aws/app-environments project)))]
+	                              (aws/describe-app-envs project)))]
 		(doseq [version (set/difference all-versions deployed-versions)]
 			(print (str "Removing '" version "'"))
 			(aws/delete-app-version project version)
