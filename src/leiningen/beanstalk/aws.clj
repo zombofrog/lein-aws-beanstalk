@@ -59,7 +59,7 @@
 (defn- credentials* [project]
 	(assoc-in project [:aws :credentials] (credentials)))
 
-; GENARATE APP VERSION
+; GENERATE APP VERSION
 
 (defn- app-version [{{{:keys [app-name]} :beanstalk} :aws}]
 	(str app-name "-" current-timestamp))
