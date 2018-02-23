@@ -231,6 +231,7 @@
 
 (defn- terminated? [environment] (= (.getStatus environment) "Terminated"))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; PUBLIC INTERFACE ;;
 ;;;;;;;;;;;;;;;;;;;;;;
