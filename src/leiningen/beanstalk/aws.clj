@@ -15,6 +15,7 @@
 		com.amazonaws.services.elasticbeanstalk.model.CreateApplicationVersionRequest
 		com.amazonaws.services.elasticbeanstalk.model.CreateEnvironmentRequest
 		com.amazonaws.services.elasticbeanstalk.model.DeleteApplicationVersionRequest
+		com.amazonaws.services.elasticbeanstalk.model.DescribeApplicationVersionsRequest
 		com.amazonaws.services.elasticbeanstalk.model.UpdateEnvironmentRequest
 		com.amazonaws.services.elasticbeanstalk.model.S3Location
 		com.amazonaws.services.elasticbeanstalk.model.TerminateEnvironmentRequest
@@ -130,13 +131,14 @@
 ; CREATE APPLICATION VERSION
 
 (defn- create-app-version*
-	[{{{:keys [app-name app-version bucket client]} :beanstalk} :aws}]
+	[{{{:keys [app-name app-version bucket description client]} :beanstalk} :aws}]
 	(.createApplicationVersion client
 	                           (doto (CreateApplicationVersionRequest.)
 	                                 (.withAutoCreateApplication true)
 	                                 (.withProcess true)
 	                                 (.withApplicationName app-name)
 	                                 (.withVersionLabel app-version)
+	                                 (.withDescription description)
 	                                 (.withSourceBundle (doto (S3Location.)
 	                                                          (.withS3Bucket bucket)
 	                                                          (.withS3Key (s3-key app-version)))))))
@@ -149,8 +151,7 @@
 	                           (doto (DeleteApplicationVersionRequest.)
 	                                 (.withApplicationName app-name)
 	                                 (.withVersionLabel version)
-	                                 (.withDeleteSourceBundle true)
-	                                 (.withProcess true))))
+	                                 (.withDeleteSourceBundle true))))
 
 ; DESCRIBE APPLICATION
 
@@ -161,6 +162,15 @@
 	     .getApplications
 	     (filter #(= app-name (.getApplicationName %)))
 	     (first)))
+
+; DESCRIBE APPLICATION VERSION
+
+(defn- describe-app-version*
+	[{{{:keys [app-name app-version client]} :beanstalk} :aws}]
+	(.describeApplicationVersions client
+	                              (doto (DescribeApplicationVersionsRequest.)
+	                                    (.withApplicationName app-name)
+	                                    (.withVersionLabels [app-version]))))
 
 ; CREATE ENVIRONMENT
 
@@ -225,16 +235,27 @@
 
 ; IS ENVIRONMENT READY
 
-(defn- ready? [environment] (= (.getStatus environment) "Ready"))
+(defn- ready? [item] (= (str/lower-case (.getStatus item)) "ready"))
 
 ; IS ENVIRONMENT TERMINATED
 
-(defn- terminated? [environment] (= (.getStatus environment) "Terminated"))
+(defn- terminated? [item] (= (str/lower-case (.getStatus item)) "terminated"))
 
+; IS APP VERSION PROCESSED
+
+(defn- processed? [item] (= (str/lower-case (.getStatus item)) "processed"))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; PUBLIC INTERFACE ;;
 ;;;;;;;;;;;;;;;;;;;;;;
+
+(defn describe-app-version [project]
+	(-> project
+	    credentials*
+	    create-eb-client*
+	    describe-app-version*
+	    .getApplicationVersions
+	    first))
 
 (defn upload-file [project filepath]
 	(-> project
@@ -250,7 +271,9 @@
 	    app-version*
 	    create-eb-client*
 	    create-app-version*)
-	(println "Created new app version:" (app-version project)))
+	(println "Created new app version:" (app-version project))
+	(poll-until processed? #(describe-app-version project))
+	(println " Done"))
 
 (defn delete-app-version [project version]
 	(-> project
