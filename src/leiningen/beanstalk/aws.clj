@@ -130,14 +130,13 @@
 ; CREATE APPLICATION VERSION
 
 (defn- create-app-version*
-	[{{{:keys [app-name app-version bucket description client]} :beanstalk} :aws}]
+	[{{{:keys [app-name app-version bucket client]} :beanstalk} :aws}]
 	(.createApplicationVersion client
 	                           (doto (CreateApplicationVersionRequest.)
 	                                 (.withAutoCreateApplication true)
 	                                 (.withProcess true)
 	                                 (.withApplicationName app-name)
 	                                 (.withVersionLabel app-version)
-	                                 (.withDescription description)
 	                                 (.withSourceBundle (doto (S3Location.)
 	                                                          (.withS3Bucket bucket)
 	                                                          (.withS3Key (s3-key app-version)))))))
