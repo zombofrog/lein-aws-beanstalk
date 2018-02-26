@@ -70,7 +70,7 @@ At a minimum, you'll need to your `project.clj` a reference to
 your application's top-level handler and uberwar-name, e.g.:
 
 ```clojure
-:ring {:handler      hello-world.core/handler
+:ring {:handler hello-world.core/handler
        :uberwar-name "hello-world.war"}
 ```
 
@@ -126,6 +126,12 @@ To shutdown an existing environment use the following command
 
 This terminates the environment and all of its resources, i.e.
 the Auto Scaling group, LoadBalancer, etc.
+
+### Delete 
+
+Delete application with it's running environment
+
+    $ lein beanstalk delete
 
 ### Cleanup
 

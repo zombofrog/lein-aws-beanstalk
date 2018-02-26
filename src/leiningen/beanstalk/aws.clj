@@ -16,6 +16,7 @@
 		com.amazonaws.services.elasticbeanstalk.model.CreateEnvironmentRequest
 		com.amazonaws.services.elasticbeanstalk.model.DeleteApplicationVersionRequest
 		com.amazonaws.services.elasticbeanstalk.model.DescribeApplicationVersionsRequest
+		com.amazonaws.services.elasticbeanstalk.model.DeleteApplicationRequest
 		com.amazonaws.services.elasticbeanstalk.model.UpdateEnvironmentRequest
 		com.amazonaws.services.elasticbeanstalk.model.S3Location
 		com.amazonaws.services.elasticbeanstalk.model.TerminateEnvironmentRequest
@@ -153,6 +154,15 @@
 	                                 (.withVersionLabel version)
 	                                 (.withDeleteSourceBundle true))))
 
+; DELETE APPLICATION WITH RUNNING ENVIRONMENT
+
+(defn- delete-app*
+	[{{{:keys [app-name client]} :beanstalk} :aws}]
+	(.deleteApplication client
+	                    (doto (DeleteApplicationRequest.)
+	                          (.setTerminateEnvByForce true)
+	                          (.setApplicationName app-name))))
+
 ; DESCRIBE APPLICATION
 
 (defn- describe-app*
@@ -281,6 +291,13 @@
 	    create-eb-client*
 	    (delete-app-version* version))
 	(println "Deleted app version:" version))
+
+(defn delete-app [project]
+	(-> project
+	    credentials*
+	    create-eb-client*
+	    delete-app*)
+	(println "Deleted app: " (-> project :aws :beanstalk :app-name)))
 
 (defn describe-app [project]
 	(-> project

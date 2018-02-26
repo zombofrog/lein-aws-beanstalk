@@ -93,10 +93,15 @@
 			(aws/delete-app-version project version)
 			(print (str " -> done!\n")))))
 
+(defn delete
+	"Delete application with its running environment"
+	[project]
+	(aws/delete-app project))
+
 (defn beanstalk
 	"Manage Amazon's Elastic Beanstalk service."
-	{:help-arglists '([clean deploy info terminate])
-	 :subtasks [#'clean #'deploy #'info #'terminate]}
+	{:help-arglists '([clean deploy info terminate delete])
+	 :subtasks [#'clean #'deploy #'info #'terminate #'delete]}
 	([project]
 	 (println (help-for "beanstalk")))
 	([project subtask & args]
@@ -106,4 +111,5 @@
 		 "deploy"    (apply deploy project args)
 		 "info"      (apply info project args)
 		 "terminate" (apply terminate project args)
+		 "delete"    (apply delete project args)
 		 (println (help-for "beanstalk")))))
