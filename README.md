@@ -19,7 +19,7 @@ your `project.clj` file.
 First, add lein-aws-beanstalk as a plugin:
 
 ```clojure
-:plugins [[lein-aws-beanstalk "0.2.82"]]
+:plugins [[lein-aws-beanstalk "0.2.82-SNAPSHOT"]]
 ```
 
 Then add credentials to your `~/.aws/credentials` file:
