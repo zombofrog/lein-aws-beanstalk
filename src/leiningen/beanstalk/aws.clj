@@ -391,7 +391,7 @@
 (defn restart-env [project env-name]
 	(when-let [env (get-running-env project env-name)]
 		(-> project
-		    credentials
+		    credentials*
 		    create-eb-client*
 		    (restart-env* env))
 		(println (str "Restarting '" env-name "' environment") "(This may take several minutes)")
