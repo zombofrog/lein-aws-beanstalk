@@ -119,4 +119,5 @@
 		 "info"      (apply info project args)
 		 "terminate" (apply terminate project args)
 		 "delete"    (apply delete project args)
+		 "restart"   (apply restart project args)
 		 (println (help-for "beanstalk")))))
