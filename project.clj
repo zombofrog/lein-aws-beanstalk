@@ -1,4 +1,4 @@
-(defproject lein-aws-beanstalk "0.2.82"
+(defproject lein-aws-beanstalk "0.2.82-SNAPSHOT"
 	:description "Leiningen plugin for Amazon's Elastic Beanstalk"
 	:url "https://github.com/zombofrog/lein-aws-beanstalk"
 	:min-lein-version "2.8.0"

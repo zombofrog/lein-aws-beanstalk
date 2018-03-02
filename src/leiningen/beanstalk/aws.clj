@@ -17,6 +17,7 @@
 		com.amazonaws.services.elasticbeanstalk.model.DeleteApplicationVersionRequest
 		com.amazonaws.services.elasticbeanstalk.model.DescribeApplicationVersionsRequest
 		com.amazonaws.services.elasticbeanstalk.model.DeleteApplicationRequest
+		com.amazonaws.services.elasticbeanstalk.model.RestartAppServerRequest
 		com.amazonaws.services.elasticbeanstalk.model.UpdateEnvironmentRequest
 		com.amazonaws.services.elasticbeanstalk.model.S3Location
 		com.amazonaws.services.elasticbeanstalk.model.TerminateEnvironmentRequest
@@ -223,6 +224,15 @@
 	                          (.withEnvironmentName (.getEnvironmentName env))
 	                          (.withVersionLabel app-version))))
 
+; RESTART ENVIRONMENT
+
+(defn- restart-env*
+	[{{{:keys [client]} :beanstalk} :aws} env]
+	(.restartAppServer client
+	                   (doto (RestartAppServerRequest.)
+	                         (.withEnvironmentId (.getEnvironmentId env))
+	                         (.withEnvironmentName (.getEnvironmentName env)))))
+
 ; TERMINATE ENVIRONMENT
 
 (defn- terminate-env* [{{{:keys [client]} :beanstalk} :aws} env]
@@ -376,4 +386,14 @@
 		    (terminate-env* env))
 		(println (str "Terminating '" env-name "' environment") "(This may take several minutes)")
 		(poll-until terminated? #(get-env project env-name))
+		(println " Done")))
+
+(defn restart-env [project env-name]
+	(when-let [env (get-running-env project env-name)]
+		(-> project
+		    credentials
+		    create-eb-client*
+		    (restart-env* env))
+		(println (str "Restarting '" env-name "' environment") "(This may take several minutes)")
+		(poll-until ready? #(get-env project env-name))
 		(println " Done")))

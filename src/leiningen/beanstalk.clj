@@ -98,10 +98,17 @@
 	[project]
 	(aws/delete-app project))
 
+(defn restart
+	"Restart the environment for the current project on Amazon Elastic Beanstalk."
+	([project]
+	 (println "Usage: lein beanstalk restart <environment>"))
+	([project env-name]
+	 (aws/restart-env project env-name)))
+
 (defn beanstalk
 	"Manage Amazon's Elastic Beanstalk service."
-	{:help-arglists '([clean deploy info terminate delete])
-	 :subtasks [#'clean #'deploy #'info #'terminate #'delete]}
+	{:help-arglists '([clean deploy info terminate delete restart])
+	 :subtasks [#'clean #'deploy #'info #'terminate #'delete #'restart]}
 	([project]
 	 (println (help-for "beanstalk")))
 	([project subtask & args]

@@ -11,7 +11,7 @@ account key and secret key.
 
 You will also need to be signed up for Elastic Beanstalk.
 
-## Basic Configuration
+## Configuration
 
 To use lein-aws-beanstalk, you'll need to add a few additional values to
 your `project.clj` file.
@@ -118,6 +118,12 @@ and information about a particular environment execute
     Created On       : Tue Feb 08 08:01:44 EST 2011
     Updated On       : Tue Feb 08 08:05:01 EST 2011
 
+### Restart
+
+Restart running application server by environment name 
+
+    $ lein beanstalk restart development
+
 ### Shutdown
 
 To shutdown an existing environment use the following command
@@ -129,7 +135,7 @@ the Auto Scaling group, LoadBalancer, etc.
 
 ### Delete 
 
-Delete application with it's running environment
+Delete application with it's running environments
 
     $ lein beanstalk delete
 
