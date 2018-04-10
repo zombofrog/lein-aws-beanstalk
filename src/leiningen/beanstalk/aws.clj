@@ -397,3 +397,9 @@
 		(println (str "Restarting '" env-name "' environment") "(This may take several minutes)")
 		(poll-until ready? #(get-env project env-name))
 		(println " Done")))
+
+(defn bucket [project bucket]
+	(-> project
+	    credentials*
+	    create-s3-client*
+	    (create-bucket bucket)))

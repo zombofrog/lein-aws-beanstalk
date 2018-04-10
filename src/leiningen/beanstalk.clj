@@ -105,10 +105,16 @@
 	([project env-name]
 	 (aws/restart-env project env-name)))
 
+(defn bucket
+	([project]
+	 (println "Usage: lein beanstalk bucket <bucket-name>"))
+	([project name]
+	 (aws/bucket project name)))
+
 (defn beanstalk
 	"Manage Amazon's Elastic Beanstalk service."
-	{:help-arglists '([clean deploy info terminate delete restart])
-	 :subtasks [#'clean #'deploy #'info #'terminate #'delete #'restart]}
+	{:help-arglists '([clean deploy info terminate delete restart bucket])
+	 :subtasks [#'clean #'deploy #'info #'terminate #'delete #'restart #'bucket]}
 	([project]
 	 (println (help-for "beanstalk")))
 	([project subtask & args]
@@ -120,4 +126,5 @@
 		 "terminate" (apply terminate project args)
 		 "delete"    (apply delete project args)
 		 "restart"   (apply restart project args)
+		 "bucket"    (apply bucket project args)
 		 (println (help-for "beanstalk")))))
