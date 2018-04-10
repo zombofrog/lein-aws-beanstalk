@@ -402,4 +402,4 @@
 	(-> project
 	    credentials*
 	    create-s3-client*
-	    (create-bucket bucket)))
+	    (as-> p (create-bucket (-> p :aws :s3 :client) bucket))))
