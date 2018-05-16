@@ -21,6 +21,7 @@
 		com.amazonaws.services.elasticbeanstalk.model.UpdateEnvironmentRequest
 		com.amazonaws.services.elasticbeanstalk.model.S3Location
 		com.amazonaws.services.elasticbeanstalk.model.TerminateEnvironmentRequest
+		com.amazonaws.services.elasticbeanstalk.model.SwapEnvironmentCNAMEsRequest
 		com.amazonaws.services.s3.AmazonS3ClientBuilder))
 
 ; HELPERS
@@ -253,6 +254,16 @@
 	[{{{:keys [app-name]} :beanstalk} :aws :as project}]
 	(filter #(= app-name (.getApplicationName %)) (describe-envs* project)))
 
+; SWAP ENVIRONMENT CNAMEs
+
+(defn- swap-env-cnames* [{{{:keys [client]} :beanstalk} :aws} blue-env green-env]
+	(.swapEnvironmentCNAMEs client
+	                        (doto (SwapEnvironmentCNAMEsRequest.)
+	                              (.withSourceEnvironmentId (.getEnvironmentId green-env))
+	                              (.withSourceEnvironmentName (.getEnvironmentName green-env))
+	                              (.withDestinationEnvironmentId (.getEnvironmentId blue-env))
+	                              (.withDestinationEnvironmentName (.getEnvironmentName blue-env)))))
+
 ; IS ENVIRONMENT READY
 
 (defn- ready? [item] (= (str/lower-case (.getStatus item)) "ready"))
@@ -377,6 +388,15 @@
 	(let [env (poll-until ready? #(get-env project env-name))]
 		(println " Done")
 		(println "Environment deployed at:" (.getCNAME env))))
+
+(defn swap-env-cnames [project blue-name green-name]
+	(let [blue-env  (get-running-env project blue-name)
+	      green-env (get-running-env project green-name)]
+		(when (and blue-env green-env)
+			(-> project
+			    credentials*
+			    create-eb-client*
+			    (swap-env-cnames* blue-env green-env)))))
 
 (defn terminate-env [project env-name]
 	(when-let [env (get-running-env project env-name)]

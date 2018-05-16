@@ -105,6 +105,12 @@
 	([project env-name]
 	 (aws/restart-env project env-name)))
 
+(defn swap
+	"Swaps the CNAMEs of two environments"
+	([project] "Usage: lein beanstalk swap <blue-environment> <green-environment>")
+	([project blue-env] "Usage: lein beanstalk swap <blue-environment> <green-environment>")
+	([project blue-env green-env] (aws/swap-env-cnames project blue-env green-env)))
+
 (defn bucket
 	([project]
 	 (println "Usage: lein beanstalk bucket <bucket-name>"))
@@ -113,8 +119,8 @@
 
 (defn beanstalk
 	"Manage Amazon's Elastic Beanstalk service."
-	{:help-arglists '([clean deploy info terminate delete restart bucket])
-	 :subtasks [#'clean #'deploy #'info #'terminate #'delete #'restart #'bucket]}
+	{:help-arglists '([clean deploy info terminate delete restart swap bucket])
+	 :subtasks [#'clean #'deploy #'info #'terminate #'delete #'restart #'swap #'bucket]}
 	([project]
 	 (println (help-for "beanstalk")))
 	([project subtask & args]
@@ -126,5 +132,6 @@
 		 "terminate" (apply terminate project args)
 		 "delete"    (apply delete project args)
 		 "restart"   (apply restart project args)
+		 "swap"      (apply swap project args)
 		 "bucket"    (apply bucket project args)
 		 (println (help-for "beanstalk")))))
